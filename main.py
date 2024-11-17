@@ -5,7 +5,11 @@ import tempfile
 import os
 import wandb
 import hydra
+import subprocess
+import logging
 from omegaconf import DictConfig
+
+logger = logging.getLogger(__name__)
 
 _steps = [
     "download",
@@ -21,7 +25,7 @@ _steps = [
 
 
 # This automatically reads in the configuration
-@hydra.main(config_name='config')
+@hydra.main(config_name="config", version_base="1.1", config_path=".")
 def go(config: DictConfig):
 
     # Setup the wandb experiment. All runs will be grouped under this name
@@ -36,19 +40,16 @@ def go(config: DictConfig):
     with tempfile.TemporaryDirectory() as tmp_dir:
 
         if "download" in active_steps:
-            # Download file and load in W&B
-            _ = mlflow.run(
-                f"{config['main']['components_repository']}/get_data",
-                "main",
-                version='main',
-                env_manager="conda",
-                parameters={
-                    "sample": config["etl"]["sample"],
-                    "artifact_name": "sample.csv",
-                    "artifact_type": "raw_data",
-                    "artifact_description": "Raw file as downloaded"
-                },
-            )
+            logger.info("Starting the download step.")
+            command = [
+                "python", "components/get_data/manual.py",
+                "--sample", config["etl"]["sample"],
+                "--artifact_name", "sample.csv",
+                "--artifact_type", "raw_data",
+                "--artifact_description", "Raw file as downloaded"
+            ]
+            # Run the command using subprocess
+            subprocess.run(command, check=True)
 
         if "basic_cleaning" in active_steps:
             ##################
